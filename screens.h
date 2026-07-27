@@ -5,6 +5,7 @@
 #include <functional>
 #include <array>
 #include "classes.h"
+#include "global.h"
 
 class MainMenu
 {
@@ -52,6 +53,7 @@ class CharacterCreator
 			"No",
 		};
 		ftxui::Component MakeScreen(int& current_screen, PartyChar& party_member);
+		void ClearData();
 };
 
 class AdvCharacterCreator
@@ -79,15 +81,17 @@ class AdvCharacterCreator
 		ftxui::Component MakeScreen(int& current_screen, PartyChar& party_member);
 };
 
-class StatsScreen
+class ReadyScreen
 {
 	public:
-		int selection;
+		int selection = 0;
+		int select_party_index = 0;
+		int is_selecting_member = 0;
 		const std::vector<std::string> entries =
 		{
-			"New Character"
-			"Edit Character"
-			"Remove Character"
+			"New Character",
+			"Edit Character",
+			"Remove Character",
 		};
-		ftxui::Component MakeScreen(int& current_screen)
+		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& current_member_index, CharacterCreator& character_creator);
 };

@@ -12,8 +12,9 @@ struct PartyChar
 {
 	public:
 		std::string name;
-		std::string class_name;
-		int HP, SP, atk, def, spd;
+		int class_ID;
+		int HP, MaxHP, SP, MaxSP, atk, def, spd;
+		int is_used = 0;
 };
 
 const CharClass GetClass(int index);
