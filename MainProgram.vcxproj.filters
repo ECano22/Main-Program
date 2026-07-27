@@ -21,9 +21,15 @@
     <ClCompile Include="screens.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="classes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="screens.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="classes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

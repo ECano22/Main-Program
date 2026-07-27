@@ -1,6 +1,9 @@
 #include <ftxui/ftxui.hpp>
 #include <iostream>
+#include <array>
+#include <functional>
 #include "screens.h"
+#include "classes.h"
 using namespace ftxui;
 
 Element spacer(int lines)
@@ -100,7 +103,7 @@ Component QuitConfirm::MakeScreen(int& current_screen)
     return renderer;
 }
 
-Component CharacterCreator::MakeScreen(int& current_screen)
+Component CharacterCreator::MakeScreen(int& current_screen, PartyChar& party_member)
 {
     // -- static text
     auto name_text = Renderer([] {
@@ -142,6 +145,31 @@ Component CharacterCreator::MakeScreen(int& current_screen)
             });
         });
     auto cnd_clr_desc = Maybe(clr_desc, [this] { return char_class == 2 && section == 1; });
+    // -- retrieving stats from classes.h
+    auto stats = Renderer([&] {
+        class_stats.clear();
+        const std::vector<std::string> class_prefix = { "HP: ", "SP: ", "Attack: ", "Defense: ", "Speed: " };
+        const CharClass class_stats_retrieved = GetClass(char_class);
+        const std::vector<std::string> class_stats_truncated = { std::to_string(class_stats_retrieved.HP),
+            std::to_string(class_stats_retrieved.SP),
+            std::to_string(class_stats_retrieved.atk),
+            std::to_string(class_stats_retrieved.def),
+            std::to_string(class_stats_retrieved.spd) };
+        for (int x = 0; x < 5; x++)
+        {
+            std::string combined = class_prefix[x] + class_stats_truncated[x];
+            class_stats.push_back(combined);
+
+        }
+        return vbox({
+            text(class_stats[0]),
+            text(class_stats[1]),
+            text(class_stats[2]),
+            text(class_stats[3]),
+            text(class_stats[4]),
+            });
+        });
+    auto cnd_stats = Maybe(stats, [this] { return section == 1; });
     // -- input & menu handling
     auto menu = Menu(&class_entries, &char_class);
     auto cnd_menu = Maybe(menu, [this] { return section == 1; });
@@ -173,13 +201,19 @@ Component CharacterCreator::MakeScreen(int& current_screen)
             }
             return false;
         });
-    auto cnd_confirm_hotkeys = CatchEvent(cnd_confirm, [this, cnd_menu](Event event)
+    auto cnd_confirm_hotkeys = CatchEvent(cnd_confirm, [this, cnd_menu, &party_member, &current_screen](Event event)
         {
             if (event == Event::Character('z'))
             {
+                const CharClass class_stats_retrieved = GetClass(char_class);
+                party_member.HP = class_stats_retrieved.HP;
+                party_member.SP = class_stats_retrieved.SP;
+                party_member.atk = class_stats_retrieved.atk;
+                party_member.def = class_stats_retrieved.def;
+                party_member.spd = class_stats_retrieved.spd;
                 if (selection == 0)
                 {
-                    //current_screen = 3;
+                    current_screen = 3;
                 }
                 if (selection == 1)
                 {
@@ -216,8 +250,124 @@ Component CharacterCreator::MakeScreen(int& current_screen)
                 cnd_hkn_desc->Render(),
                 cnd_mrc_desc->Render(),
                 cnd_clr_desc->Render(),
+                filler(),
+                cnd_stats->Render(),
             }) | border | size(WIDTH, EQUAL, 40)
         });
     });
+    return render;
+}
+
+Component AdvCharacterCreator::MakeScreen(int& current_screen, PartyChar& party_member)
+{
+    //static text
+    auto confirm_text = Renderer([&] {
+    return vbox({
+        text(std::format("press 'z' when you are finished.", stat_pool))
+                });
+        });
+    //dynamic text
+    auto pool_text = Renderer([&] {
+        return vbox({
+            text(std::format("Curent Pool: {}", stat_pool))
+            });
+        });
+    auto stats_value = Renderer([&party_member]
+        {
+            return vbox({
+                text("HP"),
+                text(std::to_string(party_member.HP)),
+                text("SP"),
+                text(std::to_string(party_member.SP)),
+                text("Attack"),
+                text(std::to_string(party_member.atk)),
+                text("Defense"),
+                text(std::to_string(party_member.def)),
+                text("Speed"),
+                text(std::to_string(party_member.spd)),
+                });
+        });
+    // -- configuring selections
+    MenuOption selection = MenuOption::Vertical();
+    selection.entries_option.transform = [](const EntryState& state) {
+        Element e = text(state.label);
+
+        // -- adding back the highlights
+        if (state.active) {
+            e = e | inverted;
+        }
+        if (state.focused) {
+            e = e | bold;
+        }
+
+        // -- adding spacers so selection lines up with the numbers
+        return vbox({
+            e,
+            spacer(1)
+            });
+        };
+    std::array<std::reference_wrapper<int>, 5> stat_array = { std::ref(party_member.HP),
+        std::ref(party_member.SP),
+        std::ref(party_member.atk),
+        std::ref(party_member.def),
+        std::ref(party_member.spd) };
+    auto left_menu = Menu(&left_entries, &stat_modified, selection);
+    auto left_menu_hotkeys = CatchEvent(left_menu, [this, &current_screen, stat_array](Event event)
+        {
+            if (event == Event::Character('z'))
+            {
+                //current_screen = 4;
+                return true;
+            }
+            if (event == Event::Character('x'))
+            {
+                current_screen = 2;
+                return true;
+            }
+            if (event == Event::ArrowLeft)
+            {
+                if (stat_array[stat_modified].get() > 0)
+                {
+                    stat_array[stat_modified].get()--;
+                    stat_pool++;
+                }
+                return true;
+            }
+            if (event == Event::ArrowRight)
+            {
+                if (stat_pool > 0)
+                {
+                    stat_pool--;
+                    stat_array[stat_modified].get()++;
+                }
+                return true;
+            }
+            return false;
+        });
+    auto right_menu = Menu(&right_entries, &stat_modified, selection);
+    // -- layout & rendering
+    auto layout = Container::Horizontal({
+        left_menu_hotkeys,
+        });
+    auto render = Renderer(layout, [=] {
+        return hbox({
+            vbox({
+                spacer(2),
+                confirm_text->Render(),
+                spacer(1),
+                pool_text->Render(),
+                spacer(1),
+                hbox({
+                    left_menu->Render(),
+                    stats_value->Render() | center,
+                    right_menu->Render(),
+                }) | center
+
+            }) | flex,
+            vbox({
+                spacer(2)
+            }) | border | size(WIDTH, EQUAL, 40)
+            });
+        });
     return render;
 }

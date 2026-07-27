@@ -124,10 +124,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="classes.cpp" />
     <ClCompile Include="MainProgram.cpp" />
     <ClCompile Include="screens.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="classes.h" />
     <ClInclude Include="screens.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
