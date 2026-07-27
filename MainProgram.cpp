@@ -9,7 +9,7 @@ int main()
 {
     // -- initializing party members
     std::array<PartyChar, MAX_PARTY_MEMBERS> party_members;
-    int current_member_index = 0;
+    int member_count = 0;
 
     // -- Initializing screens
     auto screen = ScreenInteractive::Fullscreen();
@@ -24,9 +24,10 @@ int main()
     auto screen_router = Container::Tab({
         main_menu.MakeScreen(current_screen),
         quit_confirm.MakeScreen(current_screen),
-        character_creator.MakeScreen(current_screen, party_members[current_member_index]),
-        adv_character_creator.MakeScreen(current_screen, party_members[current_member_index]),
-        ready_screen.MakeScreen(current_screen, party_members, current_member_index, character_creator)
+        //the new party members will be added to the first slot
+        character_creator.MakeScreen(current_screen, party_members[0], party_members, member_count, ready_screen),
+        adv_character_creator.MakeScreen(current_screen, party_members[0], party_members, member_count),
+        ready_screen.MakeScreen(current_screen, party_members, member_count, character_creator)
         }, &current_screen);
 
     screen.Loop(screen_router);

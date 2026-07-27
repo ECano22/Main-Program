@@ -32,6 +32,7 @@ class QuitConfirm
 		QuitConfirm(std::function<void()> quit_function);
 		ftxui::Component MakeScreen(int& current_screen);
 };
+class ReadyScreen;
 
 class CharacterCreator
 {
@@ -52,7 +53,7 @@ class CharacterCreator
 			"Yes",
 			"No",
 		};
-		ftxui::Component MakeScreen(int& current_screen, PartyChar& party_member);
+		ftxui::Component MakeScreen(int& current_screen, PartyChar& party_member, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count, ReadyScreen& ready_screen);
 		void ClearData();
 };
 
@@ -78,14 +79,14 @@ class AdvCharacterCreator
 		int stat_pool = 0;
 		int dec_inc = 0;
 		int stat_modified = 0;
-		ftxui::Component MakeScreen(int& current_screen, PartyChar& party_member);
+		ftxui::Component MakeScreen(int& current_screen, PartyChar& party_member, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count);
 };
 
 class ReadyScreen
 {
 	public:
 		int selection = 0;
-		int select_party_index = 0;
+		int member_selection = 0;
 		int is_selecting_member = 0;
 		const std::vector<std::string> entries =
 		{
@@ -93,5 +94,8 @@ class ReadyScreen
 			"Edit Character",
 			"Remove Character",
 		};
-		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& current_member_index, CharacterCreator& character_creator);
+		std::vector<std::string> member_list;
+		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count, CharacterCreator& character_creator);
+		void PopulatePartyList(std::vector<std::string>& list, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members);
+		void ClearData();
 };

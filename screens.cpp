@@ -7,10 +7,43 @@
 #include "global.h"
 using namespace ftxui;
 
+// -- functions useful for this file
+
 Element spacer(int lines)
 {
     return text("") | size(HEIGHT, EQUAL, lines);
 }
+
+void InsertMember(std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, PartyChar new_member)
+{
+    
+    for (int x = MAX_PARTY_MEMBERS-2; x >= 0; x--)
+    {
+        party_members[x + 1] = party_members[x];
+    }
+    party_members[0] = new_member;
+}
+
+void ClearMembers(std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count)
+{
+    for (auto& member : party_members)
+    {
+        member.is_used = 0;
+    }
+    member_count = 0;
+}
+
+void DeleteMember(std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count, int index)
+{
+    for (int x = index; x < MAX_PARTY_MEMBERS - 1; x++)
+    {
+        party_members[x] = party_members[x + 1];
+    }
+    party_members[MAX_PARTY_MEMBERS - 1].is_used = false;
+    member_count--;
+}
+
+// -- defining .h 
 
 Component MainMenu::MakeScreen(int& current_screen)
 {
@@ -104,9 +137,14 @@ Component QuitConfirm::MakeScreen(int& current_screen)
     return renderer;
 }
 
-Component CharacterCreator::MakeScreen(int& current_screen, PartyChar& party_member)
+Component CharacterCreator::MakeScreen(int& current_screen, PartyChar& party_member, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count, ReadyScreen& ready_screen)
 {
     // -- static text
+    auto return_text = Renderer([] {
+        return vbox({
+            text("press ESC to go back to the main menu (all changes will be lost)")
+            });
+        });
     auto name_text = Renderer([] {
         return vbox({
             text("What is this character's name? Enter to confirm.")
@@ -202,7 +240,7 @@ Component CharacterCreator::MakeScreen(int& current_screen, PartyChar& party_mem
             }
             return false;
         });
-    auto cnd_confirm_hotkeys = CatchEvent(cnd_confirm, [this, cnd_menu, &party_member, &current_screen, cnd_input_name](Event event)
+    auto cnd_confirm_hotkeys = CatchEvent(cnd_confirm, [this, cnd_menu, &party_member, &current_screen, &ready_screen, cnd_input_name](Event event)
         {
             if (event == Event::Character('z'))
             {
@@ -216,13 +254,16 @@ Component CharacterCreator::MakeScreen(int& current_screen, PartyChar& party_mem
                 party_member.def = class_stats_retrieved.def;
                 party_member.spd = class_stats_retrieved.spd;
                 party_member.is_used = 1;
+                ready_screen.ClearData();
+                
                 if (selection == 0)
                 {
+                    ClearData();
                     current_screen = 3;
-                    cnd_menu->TakeFocus();
                 }
                 if (selection == 1)
                 {
+                    ClearData();
                     current_screen = 4;
                     
                 }
@@ -230,6 +271,7 @@ Component CharacterCreator::MakeScreen(int& current_screen, PartyChar& party_mem
             if (event == Event::Character('x'))
             {
                 section = 1;
+                cnd_menu->TakeFocus();
 
                 return true;
             }
@@ -241,9 +283,21 @@ Component CharacterCreator::MakeScreen(int& current_screen, PartyChar& party_mem
         cnd_menu_hotkeys,
         cnd_confirm_hotkeys
         }, &section);
-    auto render = Renderer(layout, [=] {
+    auto global_hotkeys = CatchEvent(layout, [this, &party_members, &member_count, &current_screen](Event event)
+        {
+            if (event == Event::Escape)
+            {
+                ClearMembers(party_members, member_count);
+                ClearData();
+                current_screen = 0;
+                return true;
+            }
+            return false;
+        });
+    auto render = Renderer(global_hotkeys, [=] {
         return hbox({
             vbox({
+                return_text->Render(),
                 spacer(2),
                 cnd_name_text->Render(),
                 cnd_class_text->Render(),
@@ -269,14 +323,17 @@ Component CharacterCreator::MakeScreen(int& current_screen, PartyChar& party_mem
 void CharacterCreator::ClearData()
 {
     name = "";
-    char_class = 0;
-    selection = 0;
     section = 0;
 }
 
-Component AdvCharacterCreator::MakeScreen(int& current_screen, PartyChar& party_member)
+Component AdvCharacterCreator::MakeScreen(int& current_screen, PartyChar& party_member, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count)
 {
     //static text
+    auto return_text = Renderer([] {
+        return vbox({
+            text("press ESC to go back to the main menu (all changes will be lost)")
+            });
+        });
     auto confirm_text = Renderer([&] {
     return vbox({
         text(std::format("press 'z' when you are finished.", stat_pool))
@@ -292,9 +349,9 @@ Component AdvCharacterCreator::MakeScreen(int& current_screen, PartyChar& party_
         {
             return vbox({
                 text("HP") | hcenter,
-                text(std::to_string(party_member.HP)) | hcenter,
+                text(std::to_string(party_member.MaxHP)) | hcenter,
                 text("SP") | hcenter,
-                text(std::to_string(party_member.SP)) | hcenter,
+                text(std::to_string(party_member.MaxSP)) | hcenter,
                 text("Attack") | hcenter,
                 text(std::to_string(party_member.atk)) | hcenter,
                 text("Defense") | hcenter,
@@ -322,16 +379,18 @@ Component AdvCharacterCreator::MakeScreen(int& current_screen, PartyChar& party_
             spacer(1)
             });
         };
-    std::array<std::reference_wrapper<int>, 5> stat_array = { std::ref(party_member.HP),
-        std::ref(party_member.SP),
+    std::array<std::reference_wrapper<int>, 5> stat_array = { std::ref(party_member.MaxHP),
+        std::ref(party_member.MaxSP),
         std::ref(party_member.atk),
         std::ref(party_member.def),
         std::ref(party_member.spd) };
     auto left_menu = Menu(&left_entries, &stat_modified, selection);
-    auto left_menu_hotkeys = CatchEvent(left_menu, [this, &current_screen, stat_array](Event event)
+    auto left_menu_hotkeys = CatchEvent(left_menu, [this, &current_screen, &party_member, stat_array](Event event)
         {
             if (event == Event::Character('z'))
             {
+                party_member.HP = party_member.MaxHP;
+                party_member.SP = party_member.MaxSP;
                 current_screen = 4;
                 return true;
             }
@@ -365,9 +424,20 @@ Component AdvCharacterCreator::MakeScreen(int& current_screen, PartyChar& party_
     auto layout = Container::Horizontal({
         left_menu_hotkeys,
         });
-    auto render = Renderer(layout, [=] {
+    auto global_hotkeys = CatchEvent(layout, [this, &party_members, &member_count, &current_screen](Event event)
+        {
+            if (event == Event::Escape)
+            {
+                ClearMembers(party_members, member_count);
+                current_screen = 0;
+                return true;
+            }
+            return false;
+        });
+    auto render = Renderer(global_hotkeys, [=] {
         return hbox({
             vbox({
+                return_text->Render(),
                 spacer(2),
                 confirm_text->Render(),
                 spacer(1),
@@ -388,56 +458,94 @@ Component AdvCharacterCreator::MakeScreen(int& current_screen, PartyChar& party_
     return render;
 }
 
-Component ReadyScreen::MakeScreen(int& current_screen , std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& current_member_index, CharacterCreator& character_creator)
+Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count, CharacterCreator& character_creator)
 {
     // -- static text
+    auto return_text = Renderer([] {
+        return vbox({
+            text("press ESC to go back to the main menu (all changes will be lost)")
+            });
+        });
     auto ready_text = Renderer([] {
         return vbox({
             text("Does this look good?"),
             });
         });
-    // -- configuring menu
+
+    // -- menus
     auto menu = Menu(&entries, &selection);
-    auto cnd_menu = Maybe(menu, [this] { return is_selecting_member == 0; });
-    auto cnd_menu_hotkeys = CatchEvent(cnd_menu, [this, &current_screen, &current_member_index, &character_creator](Event event)
+    auto menu_hotkeys = CatchEvent(menu, [this, &current_screen, &member_count, &character_creator, &party_members](Event event)
         {
             if (event == Event::Character('z'))
             {
                 if (!is_selecting_member)
                 {
-                    if (selection == 0)
+                    if (selection == 0 && member_count < MAX_PARTY_MEMBERS - 1)
                     {
-                        current_member_index++;
-                        character_creator.ClearData();
+                        PartyChar new_member;
+                        InsertMember(party_members, new_member);
+                        member_count++;
                         current_screen = 2;
-
+                        return true;
                     }
-                    if (selection == 1)
+                    if (selection == 1 || (selection == 2 && member_count > 0))
                     {
                         is_selecting_member = 1;
+                        PopulatePartyList(member_list, party_members);
+                        return true;
                     }
-                    if (selection == 2)
-                    {
-                        is_selecting_member = 1;
-                    }
-                }
-                else
-                {
-                    //set the variables in CharacterCreator and go to CC screen.
+                    
                 }
             }
             return false;
         });
 
-    // -- layout and rendering
-    auto layout = Container::Horizontal({
-        cnd_menu_hotkeys,
+    auto member_menu = Menu(&member_list, &member_selection);
+    auto member_menu_hotkeys = CatchEvent(member_menu, [this, &member_count, &party_members, &character_creator, &current_screen](Event event)
+        {
+            if (event == Event::Character('x'))
+            {
+                is_selecting_member = 0;
+                return true;
+            }
+            if (event == Event::Character('z'))
+            {
+                if (selection == 1)
+                {
+                    PartyChar tempMember = party_members[member_selection];
+                    party_members[member_selection] = party_members[0];
+                    party_members[0] = tempMember;
+                    character_creator.name = party_members[0].name;
+                    current_screen = 2;
+                    return true;
+                }
+                if (selection == 2 && member_count > 0)
+                {
+                    DeleteMember(party_members, member_count, member_selection);
+                    is_selecting_member = 0;
+                    return true;
+                }
+            }
+            return false;
         });
 
-    auto render = Renderer(layout, [=, &party_members] {
-        // -- getting party member layouts for UI
+    // -- Layout and Rendering
+    auto layout = Container::Tab({
+        menu_hotkeys,
+        member_menu_hotkeys
+        }, &is_selecting_member);
+    auto global_hotkeys = CatchEvent(layout, [this, &party_members, &member_count, &current_screen](Event event)
+        {
+            if (event == Event::Escape)
+            {
+                ClearMembers(party_members, member_count);
+                current_screen = 0;
+                return true;
+            }
+            return false;
+        });
+    auto render = Renderer(global_hotkeys, [=, &party_members] {
         std::vector<Element> member_cards;
-
         int current_index = -1;
 
         for (const auto& member : party_members)
@@ -451,6 +559,8 @@ Component ReadyScreen::MakeScreen(int& current_screen , std::array<PartyChar, MA
                     text(member.name),
                     text(std::format("HP: {}/{}", member.HP, member.MaxHP)),
                     gauge(hp_ratio) | color(Color::Green) | size(WIDTH, EQUAL, 8),
+                    text(std::format("SP: {}/{}", member.SP, member.MaxSP)),
+                    gauge(sp_ratio) | color(Color::Blue) | size(WIDTH, EQUAL, 8),
                     }),
                 spacer(2),
                 vbox({
@@ -458,27 +568,35 @@ Component ReadyScreen::MakeScreen(int& current_screen , std::array<PartyChar, MA
                     text(std::format("Def: {}", member.def)),
                     text(std::format("Spd: {}", member.def)),
                     })
-                });
-
-            if (is_selecting_member && select_party_index == current_index) {
-                card = card | border;
-            }
-            else {
-                card = card | borderEmpty;
-            }
-
+                }) | border;
             member_cards.push_back(card);
-            
         }
-        return vbox({
+
+        return vbox({\
+            return_text->Render(),
             spacer(2),
             ready_text->Render() | center,
-            cnd_menu->Render(),
+            layout->Render() | center,
             filler(),
             hbox(member_cards) | center,
             spacer(2),
-
             });
         });
     return render;
+}
+
+void ReadyScreen::PopulatePartyList(std::vector<std::string>& list,std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members)
+{
+    list.clear();
+    for (const auto& member : party_members)
+    {
+        if (member.is_used)
+        {
+            list.push_back(member.name);
+        }
+    }
+}
+void ReadyScreen::ClearData()
+{
+    is_selecting_member = 0;
 }
