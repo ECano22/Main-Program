@@ -155,7 +155,7 @@ Component CharacterCreator::MakeScreen(int& current_screen, PartyChar& party_mem
     auto cnd_input_name = Maybe(input_name, [this] { return section == 0; });
     auto class_text = Renderer([] {
         return vbox({
-            text("What is this charater's class?")
+            text("What is this character's class?")
             });
         });
     auto cnd_class_text = Maybe(class_text, [this] { return section == 1; });
@@ -329,6 +329,36 @@ void CharacterCreator::ClearData()
 Component AdvCharacterCreator::MakeScreen(int& current_screen, PartyChar& party_member, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count)
 {
     //static text
+    auto hp_desc = Renderer([] {
+        return vbox({
+            paragraph("HP determines how much damage a party member can take before they die.")
+            });
+        });
+    auto cnd_hp_desc = Maybe(hp_desc, [this] { return stat_modified == 0; });
+    auto sp_desc = Renderer([] {
+        return vbox({
+            paragraph("SP determines how many skills they can use.")
+            });
+        });
+    auto cnd_sp_desc = Maybe(sp_desc, [this] { return stat_modified == 1; });
+    auto atk_desc = Renderer([] {
+        return vbox({
+            paragraph("Attack determines how much damage an attack deals.")
+            });
+        });
+    auto cnd_atk_desc = Maybe(atk_desc, [this] { return stat_modified == 2; });
+    auto def_desc = Renderer([] {
+        return vbox({
+            paragraph("Defense determines how much damage is negated.")
+            });
+        });
+    auto cnd_def_desc = Maybe(def_desc, [this] { return stat_modified == 3; });
+    auto spd_desc = Renderer([] {
+        return vbox({
+            paragraph("Speed determines the turn order of battles.")
+            });
+        });
+    auto cnd_spd_desc = Maybe(spd_desc, [this] { return stat_modified == 4; });
     auto return_text = Renderer([] {
         return vbox({
             text("press ESC to go back to the main menu (all changes will be lost)")
@@ -451,7 +481,13 @@ Component AdvCharacterCreator::MakeScreen(int& current_screen, PartyChar& party_
 
             }) | flex,
             vbox({
-                spacer(2)
+                spacer(2),
+                cnd_hp_desc->Render(),
+                cnd_sp_desc->Render(),
+                cnd_atk_desc->Render(),
+                cnd_def_desc->Render(),
+                cnd_spd_desc->Render(),
+
             }) | border | size(WIDTH, EQUAL, 40)
             });
         });
