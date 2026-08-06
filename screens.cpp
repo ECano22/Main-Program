@@ -535,7 +535,10 @@ Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX
                         PopulatePartyList(member_list, party_members);
                         return true;
                     }
-                    
+                    if (selection == 3)
+                    {
+                        current_screen = 5;
+                    }
                 }
             }
             return false;
@@ -613,7 +616,7 @@ Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX
             member_cards.push_back(card);
         }
 
-        return vbox({\
+        return vbox({
             return_text->Render(),
             spacer(2),
             ready_text->Render() | center,
@@ -640,4 +643,65 @@ void ReadyScreen::PopulatePartyList(std::vector<std::string>& list,std::array<Pa
 void ReadyScreen::ClearData()
 {
     is_selecting_member = 0;
+}
+
+Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members)
+{
+    auto menu = Menu(&choice_menu, &selection, MenuOption::Horizontal());
+    auto choice_menu_hotkeys = CatchEvent(menu, [this](Event event)
+        {
+            if (event == Event::Character('z'))
+            {
+                if (selection == 1)
+                {
+                    section = 2;
+                }
+                else if (selection == 2)
+                {
+                    section = 1;
+                }
+                return true;
+            }
+            return false;
+        });
+    auto layout = Container::Tab({
+        choice_menu_hotkeys,
+        //skill_hotkeys,
+        }, &section);
+    auto render = Renderer(layout, [=, &party_members] {
+        std::vector<Element> member_cards;
+        int current_index = -1;
+
+        for (const auto& member : party_members)
+        {
+            current_index++;
+            if (!member.is_used) continue;
+            float hp_ratio = static_cast<float>(member.HP) / static_cast<float>(member.MaxHP);
+            float sp_ratio = static_cast<float>(member.SP) / static_cast<float>(member.MaxSP);
+            auto card = hbox({
+                vbox({
+                    text(member.name),
+                    text(std::format("HP: {}/{}", member.HP, member.MaxHP)),
+                    gauge(hp_ratio) | color(Color::Green) | size(WIDTH, EQUAL, 8),
+                    text(std::format("SP: {}/{}", member.SP, member.MaxSP)),
+                    gauge(sp_ratio) | color(Color::Blue) | size(WIDTH, EQUAL, 8),
+                    }),
+                spacer(2),
+                vbox({
+                    text(std::format("Atk: {}", member.atk)),
+                    text(std::format("Def: {}", member.def)),
+                    text(std::format("Spd: {}", member.def)),
+                    })
+                }) | border;
+            member_cards.push_back(card);
+        }
+        return vbox({
+            filler(),
+            menu->Render() | center,
+            spacer(2),
+            hbox(member_cards) | center,
+            spacer(2),
+            });
+        });
+    return render;
 }

@@ -101,3 +101,24 @@ class ReadyScreen
 		void PopulatePartyList(std::vector<std::string>& list, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members);
 		void ClearData();
 };
+
+class BattleScreen
+{
+	public:
+		int selection = 0;
+		int enemy_selection = 0;
+		int ally_selection = 0;
+		int section = 0;
+		std::vector<std::string> enemies =
+		{
+			"enemy1"
+			"enemy2"
+			"enemy3"
+		};
+		const std::vector<std::string> choice_menu =
+		{
+			"Attack",
+			"Skills",
+		};
+		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members);
+};
