@@ -5,6 +5,7 @@
 #include "screens.h"
 #include "classes.h"
 #include "global.h"
+#include "zmq_classes.h"
 using namespace ftxui;
 
 // -- functions useful for this file
@@ -137,7 +138,7 @@ Component QuitConfirm::MakeScreen(int& current_screen)
     return renderer;
 }
 
-Component CharacterCreator::MakeScreen(int& current_screen, PartyChar& party_member, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count, ReadyScreen& ready_screen)
+Component CharacterCreator::MakeScreen(int& current_screen, PartyChar& party_member, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count, ReadyScreen& ready_screen, ZMQConnection& rng_connection)
 {
     // -- static text
     auto return_text = Renderer([] {
@@ -214,10 +215,14 @@ Component CharacterCreator::MakeScreen(int& current_screen, PartyChar& party_mem
     auto cnd_menu = Maybe(menu, [this] { return section == 1; });
     auto confirm = Menu(&confirm_entries, &selection);
     auto cnd_confirm = Maybe(confirm, [this] { return section == 2; });
-    auto cnd_input_name_hotkeys = CatchEvent(cnd_input_name, [this, cnd_menu](Event event)
+    auto cnd_input_name_hotkeys = CatchEvent(cnd_input_name, [this, cnd_menu, &rng_connection](Event event)
         {
             if (event == Event::Return)
             {
+                if (name == "")
+                {
+                    name = rng_connection.send_string("RandomName, 8");
+                }
                 section = 1;
                 cnd_menu->TakeFocus();
                 return true;

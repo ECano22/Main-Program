@@ -127,11 +127,13 @@
     <ClCompile Include="classes.cpp" />
     <ClCompile Include="MainProgram.cpp" />
     <ClCompile Include="screens.cpp" />
+    <ClCompile Include="zmq_classes.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="classes.h" />
     <ClInclude Include="global.h" />
     <ClInclude Include="screens.h" />
+    <ClInclude Include="zmq_classes.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,12 +1,19 @@
 #include <ftxui/ftxui.hpp>
 #include <array>
+#include <zmq.hpp>
 #include "screens.h"
 #include "classes.h"
 #include "global.h"
+#include "zmq_classes.h"
 using namespace ftxui;
 
 int main()
 {
+    // -- initializing microservices
+    zmq::context_t context(1);
+    // random name generator socket
+    zmq::socket_t rng_socket(context, zmq::socket_type::req);
+    ZMQConnection rng_connection(context, rng_socket, "tcp://localhost:5555");
     // -- initializing party members
     std::array<PartyChar, MAX_PARTY_MEMBERS> party_members;
     int member_count = 0;
@@ -25,7 +32,7 @@ int main()
         main_menu.MakeScreen(current_screen),
         quit_confirm.MakeScreen(current_screen),
         //the new party members will be added to the first slot
-        character_creator.MakeScreen(current_screen, party_members[0], party_members, member_count, ready_screen),
+        character_creator.MakeScreen(current_screen, party_members[0], party_members, member_count, ready_screen, rng_connection),
         adv_character_creator.MakeScreen(current_screen, party_members[0], party_members, member_count),
         ready_screen.MakeScreen(current_screen, party_members, member_count, character_creator)
         }, &current_screen);

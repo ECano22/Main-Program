@@ -6,6 +6,7 @@
 #include <array>
 #include "classes.h"
 #include "global.h"
+#include "zmq_classes.h"
 
 class MainMenu
 {
@@ -53,7 +54,7 @@ class CharacterCreator
 			"Yes",
 			"No",
 		};
-		ftxui::Component MakeScreen(int& current_screen, PartyChar& party_member, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count, ReadyScreen& ready_screen);
+		ftxui::Component MakeScreen(int& current_screen, PartyChar& party_member, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count, ReadyScreen& ready_screen, ZMQConnection& rng_connection);
 		void ClearData();
 };
 
@@ -93,6 +94,7 @@ class ReadyScreen
 			"New Character",
 			"Edit Character",
 			"Remove Character",
+			"Start Game",
 		};
 		std::vector<std::string> member_list;
 		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count, CharacterCreator& character_creator);
