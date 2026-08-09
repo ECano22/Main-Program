@@ -9,6 +9,9 @@
 #include "global.h"
 #include "zmq_classes.h"
 
+class ReadyScreen;
+class BattleScreen;
+
 class MainMenu
 {
 	public:
@@ -34,7 +37,6 @@ class QuitConfirm
 		QuitConfirm(std::function<void()> quit_function);
 		ftxui::Component MakeScreen(int& current_screen);
 };
-class ReadyScreen;
 
 class CharacterCreator
 {
@@ -99,7 +101,8 @@ class ReadyScreen
 		};
 		std::vector<std::string> member_list;
 		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count,
-			CharacterCreator& character_creator, std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar, EnemyChar>>& turn_order);
+			CharacterCreator& character_creator, std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar*, EnemyChar*>>& turn_order,
+			BattleScreen& battle_screen);
 		void ClearData();
 };
 
@@ -121,5 +124,6 @@ class BattleScreen
 		std::vector<std::string> enemy_list;
 		std::vector<std::string> skill_list;
 		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,
-			std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar, EnemyChar>>& turn_order);
+			std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar*, EnemyChar*>>& turn_order,
+			ZMQConnection& weighted_service);
 };

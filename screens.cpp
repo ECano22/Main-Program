@@ -2,6 +2,8 @@
 #include <iostream>
 #include <array>
 #include <functional>
+#include <format>
+#include <fstream>
 #include "screens.h"
 #include "classes.h"
 #include "global.h"
@@ -9,6 +11,12 @@
 using namespace ftxui;
 
 // -- functions useful for this file
+
+void DebugLog(const std::string& message)
+{
+    std::ofstream log_file("debug.txt", std::ios_base::app);
+    log_file << message << "\n";
+}
 
 Element spacer(int lines)
 {
@@ -250,6 +258,7 @@ Component CharacterCreator::MakeScreen(int& current_screen, PartyChar& party_mem
             if (event == Event::Character('z'))
             {
                 const CharClass class_stats_retrieved = GetClass(char_class);
+                party_member.class_ID = char_class;
                 party_member.name = name;
                 party_member.HP = class_stats_retrieved.HP;
                 party_member.MaxHP = class_stats_retrieved.HP;
@@ -500,7 +509,8 @@ Component AdvCharacterCreator::MakeScreen(int& current_screen, PartyChar& party_
 }
 
 Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count,
-    CharacterCreator& character_creator, std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar, EnemyChar>>& turn_order)
+    CharacterCreator& character_creator, std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar*, EnemyChar*>>& turn_order,
+    BattleScreen& battle_screen)
 {
     // -- static text
     auto return_text = Renderer([] {
@@ -516,7 +526,7 @@ Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX
 
     // -- menus
     auto menu = Menu(&entries, &selection);
-    auto menu_hotkeys = CatchEvent(menu, [this, &current_screen, &member_count, &character_creator, &party_members, &enemy_members, &turn_order](Event event)
+    auto menu_hotkeys = CatchEvent(menu, [this, &current_screen, &member_count, &character_creator, &party_members, &enemy_members, &turn_order, &battle_screen](Event event)
         {
             if (event == Event::Character('z'))
             {
@@ -540,6 +550,8 @@ Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX
                     {
                         GetEnemies(enemy_members);
                         TurnOrder(turn_order, party_members, enemy_members);
+                        if (std::holds_alternative<EnemyChar*>(turn_order[0])) battle_screen.section = 2;
+                        else battle_screen.section = 0;
                         current_screen = 5;
                     }
                 }
@@ -639,8 +651,34 @@ void ReadyScreen::ClearData()
 }
 
 Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,
-    std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar, EnemyChar>>& turn_order)
+    std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar*, EnemyChar*>>& turn_order,
+    ZMQConnection& weighted_service)
 {
+    DebugLog("BattleScreen Created");
+    auto advance_turn = [this, &turn_order]() {
+        while (true)
+        {
+            turn_idx++;
+            if (turn_idx >= turn_order.size()) turn_idx = 0;
+            int current_hp = std::visit([](const auto* combatant) {
+                return combatant->HP;
+                }, turn_order[turn_idx]);
+
+            if (current_hp > 0) break;
+        }
+        DebugLog(std::to_string(turn_idx));
+        if (turn_idx >= turn_order.size()) turn_idx = 0;
+        if (std::holds_alternative<EnemyChar*>(turn_order[turn_idx])) section = 2;
+        else section = 0;
+        };
+    // -- static text
+    auto name_text = Renderer([this, &turn_order] {
+        std::string attacker_name = std::visit([](const auto* val) { return val->name; }, turn_order[turn_idx]);
+        return vbox({
+            text(std::format("{} attacks!", attacker_name))
+            });
+        });
+    auto cnd_name_text = Maybe(name_text, [this] { return section == 0; });
     // -- setting up menus and hotkeys
     auto choice_menu = Menu(&choice_list, &selection, MenuOption::Horizontal());
     auto choice_menu_hotkeys = CatchEvent(choice_menu, [this, &enemy_members](Event event)
@@ -665,7 +703,7 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
             return false;
         });
     auto enemy_menu = Menu(&enemy_list, &enemy_selection, MenuOption::Horizontal());
-    auto enemy_menu_hotkeys = CatchEvent(enemy_menu, [this, &enemy_members, &turn_order](Event event)
+    auto enemy_menu_hotkeys = CatchEvent(enemy_menu, [this, &enemy_members, &turn_order, advance_turn](Event event)
         {
             if (event == Event::Character('z'))
             {
@@ -673,16 +711,44 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
                     {
                         using PlayerType = std::decay_t<decltype(unwrapped_ally)>;
                         using SkillType = std::decay_t<decltype(unwrapped_skill)>;
-                        if constexpr (std::is_same_v<PlayerType, PartyChar> 
+                        if constexpr (std::is_same_v<PlayerType, PartyChar*> 
                             && (std::is_same_v<SkillType, std::monostate>
                             || std::is_same_v<SkillType, AllyAttack>))
-                            ExecuteAllyAttack(unwrapped_ally, enemy_members[enemy_selection], unwrapped_skill);
+                            ExecuteAllyAttack(*unwrapped_ally, enemy_members[enemy_selection], unwrapped_skill);
                     }, turn_order[turn_idx], skill);
+                advance_turn();
                 return true;
             }
             else if (event == Event::Character('x'))
             {
                 section = 0;
+                return true;
+            }
+            return false;
+        });
+    auto dummy_focus = Button("", [] {});
+    auto enemy_attack = Renderer(dummy_focus, [this, &turn_order] {
+        std::string attacker_name = std::visit([](const auto* val) { return val->name; }, turn_order[turn_idx]);
+        return vbox({
+            text(std::format("{} attacks!", attacker_name)),
+            }) | center;
+        });
+  
+    auto enemy_attack_hotkeys = CatchEvent(enemy_attack, [this, advance_turn, &turn_order, &party_members, &weighted_service](Event event)
+        {
+            if (event == Event::Character('z'))
+            {
+                DebugLog("Z pressed");
+                std::visit([&](const auto& unwrapped_enemy)
+                    {
+                        using EnemyType = std::decay_t<decltype(unwrapped_enemy)>;
+                        if constexpr (std::is_same_v<EnemyType, EnemyChar*>)
+                        {
+                            DebugLog("Executing Enemy Attack");
+                            ExecuteEnemyAttack(*unwrapped_enemy, party_members, weighted_service);
+                        }
+                    }, turn_order[turn_idx]);
+                advance_turn();
                 return true;
             }
             return false;
@@ -707,9 +773,9 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
     auto layout = Container::Tab({
         choice_menu_hotkeys,
         enemy_menu_hotkeys,
+        enemy_attack_hotkeys,
         //skill_hotkeys,
         //party_menu_hotkeys,
-        //enemy_attack
         }, &section);
     auto render = Renderer(layout, [=, &party_members, &enemy_members] {
         std::vector<Element> member_cards;
@@ -739,8 +805,6 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
         std::vector<Element> enemy_cards;
         for (const auto& member : enemy_members)
         {
-            // if no HP, the enemy is dead
-            if (!member.HP) continue;
             float hp_ratio = static_cast<float>(member.HP) / static_cast<float>(member.MaxHP);
             auto card = hbox({
                 vbox({
@@ -763,6 +827,7 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
             filler(),
             layout->Render() | center,
             spacer(2),
+            cnd_name_text->Render() | center,
             hbox(member_cards) | center,
             spacer(2),
             });

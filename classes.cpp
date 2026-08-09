@@ -3,6 +3,7 @@
 #include <type_traits>
 #include <algorithm>
 #include <functional>
+#include <nlohmann/json.hpp>
 #include "classes.h"
 
 AllyAttack mrc_atk = { "Cleave", 1.5 };
@@ -48,17 +49,18 @@ void GetSkills(std::vector<std::string>& list, int class_ID)
 	}
 }
 
-void TurnOrder(std::vector<std::variant<PartyChar, EnemyChar>>& turn_order,
+void TurnOrder(std::vector<std::variant<PartyChar*, EnemyChar*>>& turn_order,
 			   std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,
 			   std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members)
 {
-	for (auto member : party_members) turn_order.push_back(member);
-	for (auto member : enemy_members) turn_order.push_back(member);
+	turn_order.clear();
+	for (auto& member : party_members) turn_order.push_back(&member);
+	for (auto& member : enemy_members) turn_order.push_back(&member);
 	std::ranges::sort(turn_order, std::greater<>{}, [](const auto& x)
 		{
-			return std::visit([](const auto& value)
+			return std::visit([](const auto* value)
 				{
-					return value.spd;
+					return value->spd;
 				}, x);
 		});
 }
@@ -83,7 +85,20 @@ int ExecuteAllySupport(PartyChar target, AllySupport skill)
 {
 	return AddHP(target.HP, target.MaxHP, skill.heal_amount);
 }
-int ExecuteEnemyAttack(EnemyChar attacker, PartyChar& target)
+int ExecuteEnemyAttack(EnemyChar attacker, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,
+	ZMQConnection& weighted_service)
 {
-	return SubtractHP(target.HP, attacker.atk);
+	std::vector<float> weighted_vector;
+	for (auto& member : party_members)
+	{
+		if (member.HP > 0 && member.is_used)
+		{
+			if (member.class_ID == 0) weighted_vector.push_back(2);
+			else weighted_vector.push_back(1);
+		}
+		else weighted_vector.push_back(0);
+	}
+	nlohmann::json weighted_json = weighted_vector;
+	auto target_idx = weighted_service.send_json(weighted_json)["value"];
+	return SubtractHP(party_members[target_idx].HP, attacker.atk);
 }
