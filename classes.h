@@ -60,10 +60,25 @@ void GetNames(std::vector<std::string>& list, std::array<T, MAX_PARTY_MEMBERS>& 
 template <typename T>
 T GetSkillAtIdx(int class_ID, int idx)
 {
-	return GetClass(class_ID).skills[idx]
+	return GetClass(class_ID).skills[idx];
 }
 
 void GetSkills(std::vector<std::string>& list, int class_ID);
-void TurnOrder(std::vector<std::variant<PartyChar, EnemyChar>> turn_order,
-			   std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,
-			   std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members);
+void TurnOrder(std::vector<std::variant<PartyChar, EnemyChar>>& turn_order,
+	std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,
+	std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members);
+int SubtractHP(int& HP, int value);
+int AddHP(int& HP, int maxHP, int value);
+
+template <typename T>
+int ExecuteAllyAttack(PartyChar attacker, EnemyChar& target, T attack)
+{
+	float modifier = 1.0;
+	if constexpr (std::is_same_v<T, AllyAttack>)
+	{
+		modifier = attack.modifier;
+	}
+	return SubtractHP(target.HP, attacker.atk * modifier);
+}
+int ExecuteAllySupport(PartyChar target, AllySupport skill);
+int ExecuteEnemyAttack(EnemyChar attacker, PartyChar& target);

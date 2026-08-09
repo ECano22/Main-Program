@@ -499,7 +499,8 @@ Component AdvCharacterCreator::MakeScreen(int& current_screen, PartyChar& party_
     return render;
 }
 
-Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count, CharacterCreator& character_creator)
+Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count,
+    CharacterCreator& character_creator, std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar, EnemyChar>>& turn_order)
 {
     // -- static text
     auto return_text = Renderer([] {
@@ -515,7 +516,7 @@ Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX
 
     // -- menus
     auto menu = Menu(&entries, &selection);
-    auto menu_hotkeys = CatchEvent(menu, [this, &current_screen, &member_count, &character_creator, &party_members](Event event)
+    auto menu_hotkeys = CatchEvent(menu, [this, &current_screen, &member_count, &character_creator, &party_members, &enemy_members, &turn_order](Event event)
         {
             if (event == Event::Character('z'))
             {
@@ -537,6 +538,8 @@ Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX
                     }
                     if (selection == 3)
                     {
+                        GetEnemies(enemy_members);
+                        TurnOrder(turn_order, party_members, enemy_members);
                         current_screen = 5;
                     }
                 }
@@ -635,11 +638,10 @@ void ReadyScreen::ClearData()
     is_selecting_member = 0;
 }
 
-Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members)
+Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,
+    std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar, EnemyChar>>& turn_order)
 {
-    //populating enemies
-    GetEnemies(enemy_members);
-    TurnOrder(turn_order, party_members, enemy_members);
+    // -- setting up menus and hotkeys
     auto choice_menu = Menu(&choice_list, &selection, MenuOption::Horizontal());
     auto choice_menu_hotkeys = CatchEvent(choice_menu, [this, &enemy_members](Event event)
         {
@@ -663,11 +665,19 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
             return false;
         });
     auto enemy_menu = Menu(&enemy_list, &enemy_selection, MenuOption::Horizontal());
-    auto enemy_menu_hotkeys = CatchEvent(enemy_menu, [this](Event event)
+    auto enemy_menu_hotkeys = CatchEvent(enemy_menu, [this, &enemy_members, &turn_order](Event event)
         {
             if (event == Event::Character('z'))
             {
-                //attack enemy at index
+                std::visit([&] (const auto& unwrapped_ally, const auto& unwrapped_skill)
+                    {
+                        using PlayerType = std::decay_t<decltype(unwrapped_ally)>;
+                        using SkillType = std::decay_t<decltype(unwrapped_skill)>;
+                        if constexpr (std::is_same_v<PlayerType, PartyChar> 
+                            && (std::is_same_v<SkillType, std::monostate>
+                            || std::is_same_v<SkillType, AllyAttack>))
+                            ExecuteAllyAttack(unwrapped_ally, enemy_members[enemy_selection], unwrapped_skill);
+                    }, turn_order[turn_idx], skill);
                 return true;
             }
             else if (event == Event::Character('x'))
@@ -693,6 +703,7 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
             }
             return false;
         });
+    // -- setting up layout and and rendering
     auto layout = Container::Tab({
         choice_menu_hotkeys,
         enemy_menu_hotkeys,

@@ -48,7 +48,7 @@ void GetSkills(std::vector<std::string>& list, int class_ID)
 	}
 }
 
-void TurnOrder(std::vector<std::variant<PartyChar, EnemyChar>> turn_order,
+void TurnOrder(std::vector<std::variant<PartyChar, EnemyChar>>& turn_order,
 			   std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,
 			   std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members)
 {
@@ -61,4 +61,29 @@ void TurnOrder(std::vector<std::variant<PartyChar, EnemyChar>> turn_order,
 					return value.spd;
 				}, x);
 		});
+}
+
+//returns how much HP was removed
+int SubtractHP(int& HP, int value)
+{
+	int initHP = HP;
+	HP -= value;
+	if (HP < 0) HP = 0;
+	return initHP - HP;
+}
+//returns how much HP was added
+int AddHP(int& HP, int maxHP, int value)
+{
+	int initHP = HP;
+	HP += value;
+	if (HP < maxHP) HP = maxHP;
+	return HP - initHP;
+}
+int ExecuteAllySupport(PartyChar target, AllySupport skill)
+{
+	return AddHP(target.HP, target.MaxHP, skill.heal_amount);
+}
+int ExecuteEnemyAttack(EnemyChar attacker, PartyChar& target)
+{
+	return SubtractHP(target.HP, attacker.atk);
 }

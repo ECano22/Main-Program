@@ -98,7 +98,8 @@ class ReadyScreen
 			"Start Game",
 		};
 		std::vector<std::string> member_list;
-		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count, CharacterCreator& character_creator);
+		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count,
+			CharacterCreator& character_creator, std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar, EnemyChar>>& turn_order);
 		void ClearData();
 };
 
@@ -111,9 +112,7 @@ class BattleScreen
 		int ally_selection = 0;
 		int section = 0;
 		int turn_idx = 0;
-		std::vector<std::variant<PartyChar, EnemyChar>> turn_order;
-		int current_turn;
-		std::variant<std::monostate, AllyAttack, AllySupport> attack;
+		std::variant<std::monostate, AllyAttack, AllySupport> skill;
 		const std::vector<std::string> choice_list =
 		{
 			"Attack",
@@ -121,5 +120,6 @@ class BattleScreen
 		};
 		std::vector<std::string> enemy_list;
 		std::vector<std::string> skill_list;
-		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members);
+		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,
+			std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar, EnemyChar>>& turn_order);
 };
