@@ -640,26 +640,44 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
     //populating enemies
     GetEnemies(enemy_members);
     auto menu = Menu(&choice_menu, &selection, MenuOption::Horizontal());
-    auto choice_menu_hotkeys = CatchEvent(menu, [this](Event event)
+    auto choice_menu_hotkeys = CatchEvent(menu, [this, &enemy_members](Event event)
         {
             if (event == Event::Character('z'))
             {
-                if (selection == 1)
+                //selected attack
+                if (selection == 0)
+                {
+                    GetNames(enemy_list, enemy_members);
+                    section = 1;
+                }
+                //selected skills
+                else if (selection == 1)
                 {
                     section = 2;
                 }
-                else if (selection == 2)
-                {
-                    section = 1;
-                }
+                return true;
+            }
+            return false;
+        });
+    auto enemy_menu = Menu(&enemy_list, &enemy_selection, MenuOption::Horizontal());
+    auto enemy_menu_hotkeys = CatchEvent(enemy_menu, [this](Event event)
+        {
+            if (event == Event::Character('z'))
+            {
+                //attack enemy at index
+                return true;
+            }
+            else if (event == Event::Character('x'))
+            {
+                section = 0;
                 return true;
             }
             return false;
         });
     auto layout = Container::Tab({
         choice_menu_hotkeys,
+        enemy_menu_hotkeys,
         //skill_hotkeys,
-        //enemy_menu_hotkeys,
         //party_menu_hotkeys,
         //enemy_attack
         }, &section);
@@ -713,7 +731,7 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
             spacer(2),
             hbox(enemy_cards) | center,
             filler(),
-            menu->Render() | center,
+            layout->Render() | center,
             spacer(2),
             hbox(member_cards) | center,
             spacer(2),

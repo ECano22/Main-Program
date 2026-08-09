@@ -111,12 +111,7 @@ class BattleScreen
 		int section = 0;
 		int turn_idx = 0;
 		std::vector<std::variant<PartyChar, EnemyChar>> turnOrder;
-		std::vector<std::string> enemies =
-		{
-			"enemy1"
-			"enemy2"
-			"enemy3"
-		};
+		std::vector<std::string> enemy_list;
 		const std::vector<std::string> choice_menu =
 		{
 			"Attack",
