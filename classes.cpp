@@ -1,11 +1,16 @@
 #include <map>
 #include <string>
 #include <type_traits>
+#include <algorithm>
+#include <functional>
 #include "classes.h"
 
-inline CharClass hkn_class = { 0, "Heavy Knight", 30, 5, 8, 5, 0 };
-inline CharClass mrc_class = { 1, "Mercenary", 20, 10, 11, 3, 5 };
-inline CharClass clr_class = { 2, "Cleric", 15, 15, 8, 2, 5 };
+AllyAttack mrc_atk = { "Cleave", 1.5 };
+AllySupport clr_heal = { "Heal", 10 };
+
+inline CharClass hkn_class = { 0, "Heavy Knight", 30, 5, 8, 5, 0, {} };
+inline CharClass mrc_class = { 1, "Mercenary", 20, 10, 11, 3, 5, {mrc_atk} };
+inline CharClass clr_class = { 2, "Cleric", 15, 15, 8, 2, 5, {clr_heal} };
 
 // Returns a reference to the static database map
 const CharClass GetClass(int index) {
@@ -30,4 +35,30 @@ void GetEnemies(std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_array)
 		enemy.MaxHP = stats.HP;
 		enemy.HP = stats.HP;
 	}
+}
+
+void GetSkills(std::vector<std::string>& list, int class_ID)
+{
+	list.clear();
+	for (const auto& skill : GetClass(class_ID).skills)
+	{
+		list.push_back(std::visit([](const auto& value) {
+			return value.name;
+			}, skill));
+	}
+}
+
+void TurnOrder(std::vector<std::variant<PartyChar, EnemyChar>> turn_order,
+			   std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,
+			   std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members)
+{
+	for (auto member : party_members) turn_order.push_back(member);
+	for (auto member : enemy_members) turn_order.push_back(member);
+	std::ranges::sort(turn_order, std::greater<>{}, [](const auto& x)
+		{
+			return std::visit([](const auto& value)
+				{
+					return value.spd;
+				}, x);
+		});
 }

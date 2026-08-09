@@ -11,7 +11,7 @@ int main()
 {
     // -- initializing microservices
     zmq::context_t context(1);
-    // random name generator socket
+    // -- random name generator
     zmq::socket_t rng_socket(context, zmq::socket_type::req);
     zmq::socket_t weighted_socket(context, zmq::socket_type::req);
     zmq::socket_t exchange_socket(context, zmq::socket_type::req);

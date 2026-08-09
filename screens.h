@@ -106,16 +106,20 @@ class BattleScreen
 {
 	public:
 		int selection = 0;
+		int skill_selection = 0;
 		int enemy_selection = 0;
 		int ally_selection = 0;
 		int section = 0;
 		int turn_idx = 0;
-		std::vector<std::variant<PartyChar, EnemyChar>> turnOrder;
-		std::vector<std::string> enemy_list;
-		const std::vector<std::string> choice_menu =
+		std::vector<std::variant<PartyChar, EnemyChar>> turn_order;
+		int current_turn;
+		std::variant<std::monostate, AllyAttack, AllySupport> attack;
+		const std::vector<std::string> choice_list =
 		{
 			"Attack",
 			"Skills",
 		};
+		std::vector<std::string> enemy_list;
+		std::vector<std::string> skill_list;
 		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members);
 };

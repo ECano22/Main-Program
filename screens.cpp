@@ -639,8 +639,9 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
 {
     //populating enemies
     GetEnemies(enemy_members);
-    auto menu = Menu(&choice_menu, &selection, MenuOption::Horizontal());
-    auto choice_menu_hotkeys = CatchEvent(menu, [this, &enemy_members](Event event)
+    TurnOrder(turn_order, party_members, enemy_members);
+    auto choice_menu = Menu(&choice_list, &selection, MenuOption::Horizontal());
+    auto choice_menu_hotkeys = CatchEvent(choice_menu, [this, &enemy_members](Event event)
         {
             if (event == Event::Character('z'))
             {
@@ -653,6 +654,8 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
                 //selected skills
                 else if (selection == 1)
                 {
+                    // need to implement basic combat before tackling skills
+                    // GetSkills(skill_list, )
                     section = 2;
                 }
                 return true;
@@ -665,6 +668,22 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
             if (event == Event::Character('z'))
             {
                 //attack enemy at index
+                return true;
+            }
+            else if (event == Event::Character('x'))
+            {
+                section = 0;
+                return true;
+            }
+            return false;
+        });
+    auto skill_menu = Menu(&skill_list, &skill_selection, MenuOption::Horizontal());
+    auto skill_menu_hotkeys = CatchEvent(skill_menu, [this](Event event)
+        {
+            if (event == Event::Character('z'))
+            {
+                //set attack to skill
+                //bring up ally/enemy list depending on skill type
                 return true;
             }
             else if (event == Event::Character('x'))
