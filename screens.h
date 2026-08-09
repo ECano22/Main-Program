@@ -4,6 +4,7 @@
 #include <string>
 #include <functional>
 #include <array>
+#include <variant>
 #include "classes.h"
 #include "global.h"
 #include "zmq_classes.h"
@@ -98,7 +99,6 @@ class ReadyScreen
 		};
 		std::vector<std::string> member_list;
 		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count, CharacterCreator& character_creator);
-		void PopulatePartyList(std::vector<std::string>& list, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members);
 		void ClearData();
 };
 
@@ -109,6 +109,8 @@ class BattleScreen
 		int enemy_selection = 0;
 		int ally_selection = 0;
 		int section = 0;
+		int turn_idx = 0;
+		std::vector<std::variant<PartyChar, EnemyChar>> turnOrder;
 		std::vector<std::string> enemies =
 		{
 			"enemy1"
@@ -120,5 +122,5 @@ class BattleScreen
 			"Attack",
 			"Skills",
 		};
-		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members);
+		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members);
 };

@@ -532,7 +532,7 @@ Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX
                     if (selection == 1 || (selection == 2 && member_count > 0))
                     {
                         is_selecting_member = 1;
-                        PopulatePartyList(member_list, party_members);
+                        GetNames(member_list, party_members);
                         return true;
                     }
                     if (selection == 3)
@@ -629,24 +629,16 @@ Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX
     return render;
 }
 
-void ReadyScreen::PopulatePartyList(std::vector<std::string>& list,std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members)
-{
-    list.clear();
-    for (const auto& member : party_members)
-    {
-        if (member.is_used)
-        {
-            list.push_back(member.name);
-        }
-    }
-}
+
 void ReadyScreen::ClearData()
 {
     is_selecting_member = 0;
 }
 
-Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members)
+Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members)
 {
+    //populating enemies
+    GetEnemies(enemy_members);
     auto menu = Menu(&choice_menu, &selection, MenuOption::Horizontal());
     auto choice_menu_hotkeys = CatchEvent(menu, [this](Event event)
         {
@@ -667,14 +659,15 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
     auto layout = Container::Tab({
         choice_menu_hotkeys,
         //skill_hotkeys,
+        //enemy_menu_hotkeys,
+        //party_menu_hotkeys,
+        //enemy_attack
         }, &section);
-    auto render = Renderer(layout, [=, &party_members] {
+    auto render = Renderer(layout, [=, &party_members, &enemy_members] {
         std::vector<Element> member_cards;
-        int current_index = -1;
 
         for (const auto& member : party_members)
         {
-            current_index++;
             if (!member.is_used) continue;
             float hp_ratio = static_cast<float>(member.HP) / static_cast<float>(member.MaxHP);
             float sp_ratio = static_cast<float>(member.SP) / static_cast<float>(member.MaxSP);
@@ -695,7 +688,30 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
                 }) | border;
             member_cards.push_back(card);
         }
+        std::vector<Element> enemy_cards;
+        for (const auto& member : enemy_members)
+        {
+            // if no HP, the enemy is dead
+            if (!member.HP) continue;
+            float hp_ratio = static_cast<float>(member.HP) / static_cast<float>(member.MaxHP);
+            auto card = hbox({
+                vbox({
+                    text(member.name),
+                    text(std::format("HP: {}/{}", member.HP, member.MaxHP)),
+                    gauge(hp_ratio) | color(Color::Green) | size(WIDTH, EQUAL, 8),
+                    }),
+                spacer(2),
+                vbox({
+                    text(std::format("Atk: {}", member.atk)),
+                    text(std::format("Def: {}", member.def)),
+                    text(std::format("Spd: {}", member.def)),
+                    })
+                }) | border;
+            enemy_cards.push_back(card);
+        }
         return vbox({
+            spacer(2),
+            hbox(enemy_cards) | center,
             filler(),
             menu->Render() | center,
             spacer(2),

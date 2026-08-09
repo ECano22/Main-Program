@@ -25,6 +25,8 @@ int main()
     // -- initializing party members
     std::array<PartyChar, MAX_PARTY_MEMBERS> party_members;
     int member_count = 0;
+    std::array<EnemyChar, MAX_PARTY_MEMBERS> enemy_members;
+
 
     // -- Initializing screens
     auto screen = ScreenInteractive::Fullscreen();
@@ -44,7 +46,7 @@ int main()
         character_creator.MakeScreen(current_screen, party_members[0], party_members, member_count, ready_screen, rng_connection),
         adv_character_creator.MakeScreen(current_screen, party_members[0], party_members, member_count),
         ready_screen.MakeScreen(current_screen, party_members, member_count, character_creator),
-        battle_screen.MakeScreen(current_screen, party_members)
+        battle_screen.MakeScreen(current_screen, party_members, enemy_members)
         }, &current_screen);
 
     screen.Loop(screen_router);
