@@ -102,3 +102,13 @@ int ExecuteEnemyAttack(EnemyChar attacker, std::array<PartyChar, MAX_PARTY_MEMBE
 	auto target_idx = weighted_service.send_json(weighted_json)["value"];
 	return SubtractHP(party_members[target_idx].HP, attacker.atk);
 }
+bool AllDead(std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members)
+{
+	for (auto& member : party_members) if (member.is_used && member.HP > 0) return false;
+	return true;
+}
+bool AllDead(std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members)
+{
+	for (auto& member : enemy_members) if (member.HP > 0) return false;
+	return true;
+}

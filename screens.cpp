@@ -510,7 +510,7 @@ Component AdvCharacterCreator::MakeScreen(int& current_screen, PartyChar& party_
 
 Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members, int& member_count,
     CharacterCreator& character_creator, std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar*, EnemyChar*>>& turn_order,
-    BattleScreen& battle_screen)
+    BattleScreen& battle_screen, ZMQConnection& timer_service)
 {
     // -- static text
     auto return_text = Renderer([] {
@@ -526,7 +526,7 @@ Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX
 
     // -- menus
     auto menu = Menu(&entries, &selection);
-    auto menu_hotkeys = CatchEvent(menu, [this, &current_screen, &member_count, &character_creator, &party_members, &enemy_members, &turn_order, &battle_screen](Event event)
+    auto menu_hotkeys = CatchEvent(menu, [this, &current_screen, &member_count, &character_creator, &party_members, &enemy_members, &turn_order, &battle_screen, &timer_service](Event event)
         {
             if (event == Event::Character('z'))
             {
@@ -552,6 +552,7 @@ Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX
                         TurnOrder(turn_order, party_members, enemy_members);
                         if (std::holds_alternative<EnemyChar*>(turn_order[0])) battle_screen.section = 2;
                         else battle_screen.section = 0;
+                        timer_service.send_string("timer stsp");
                         current_screen = 5;
                     }
                 }
@@ -652,7 +653,7 @@ void ReadyScreen::ClearData()
 
 Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,
     std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar*, EnemyChar*>>& turn_order,
-    ZMQConnection& weighted_service)
+    ZMQConnection& weighted_service, ZMQConnection& timer_service, ZMQConnection& leaderboard_service, ResultScreen& result_screen)
 {
     DebugLog("BattleScreen Created");
     auto advance_turn = [this, &turn_order]() {
@@ -703,7 +704,7 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
             return false;
         });
     auto enemy_menu = Menu(&enemy_list, &enemy_selection, MenuOption::Horizontal());
-    auto enemy_menu_hotkeys = CatchEvent(enemy_menu, [this, &enemy_members, &turn_order, advance_turn](Event event)
+    auto enemy_menu_hotkeys = CatchEvent(enemy_menu, [this, &enemy_members, &turn_order, &current_screen, &timer_service, &result_screen, advance_turn](Event event)
         {
             if (event == Event::Character('z'))
             {
@@ -716,6 +717,13 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
                             || std::is_same_v<SkillType, AllyAttack>))
                             ExecuteAllyAttack(*unwrapped_ally, enemy_members[enemy_selection], unwrapped_skill);
                     }, turn_order[turn_idx], skill);
+                if (AllDead(enemy_members))
+                {
+                    timer_service.send_string("timer stsp");
+                    result_screen.winner = true;
+                    result_screen.finish_time = timer_service.send_string("timer read");
+                    current_screen = 6;
+                }
                 advance_turn();
                 return true;
             }
@@ -734,7 +742,7 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
             }) | center;
         });
   
-    auto enemy_attack_hotkeys = CatchEvent(enemy_attack, [this, advance_turn, &turn_order, &party_members, &weighted_service](Event event)
+    auto enemy_attack_hotkeys = CatchEvent(enemy_attack, [this, advance_turn, &turn_order, &party_members, &weighted_service, &current_screen, &timer_service, &result_screen](Event event)
         {
             if (event == Event::Character('z'))
             {
@@ -746,6 +754,13 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
                         {
                             DebugLog("Executing Enemy Attack");
                             ExecuteEnemyAttack(*unwrapped_enemy, party_members, weighted_service);
+                            if (AllDead(party_members))
+                            {   
+                                timer_service.send_string("timer stsp");
+                                result_screen.winner = false;
+                                result_screen.finish_time = timer_service.send_string("timer read");
+                                current_screen = 6;
+                            }
                         }
                     }, turn_order[turn_idx]);
                 advance_turn();
@@ -830,6 +845,62 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
             cnd_name_text->Render() | center,
             hbox(member_cards) | center,
             spacer(2),
+            });
+        });
+    return render;
+}
+
+Component ResultScreen::MakeScreen(int& current_screen, ZMQConnection& score_service)
+{
+    // -- static text
+    auto win_text = Renderer([this] {
+        return vbox({
+            text("you won!")
+            });
+        });
+    auto cnd_win_text = Maybe(win_text, [this] { return winner; });
+    auto loss_text = Renderer([this] {
+        return vbox({
+            text("you lost...")
+            });
+        });
+    auto cnd_loss_text = Maybe(loss_text, [this] { return !winner; });
+    auto time_text = Renderer([this] {
+        return vbox({
+            text(std::format("finish_time: {}", finish_time))
+            });
+        });
+    auto name_text = Renderer([] {
+        return vbox({
+            text("What is your name? Enter to confirm.")
+            });
+        });
+    Component input_name = Input(&name, "Name...");
+    auto leaderboard_text = Renderer([this] {
+        return vbox({
+            text("Top Scores:")
+            }); 
+        });
+    // -- input handling
+    auto dummy_focus = Button("", [] {});
+    auto global_hotkeys = CatchEvent(dummy_focus, [this, &current_screen](Event event)
+        {
+            if (event == Event::Character('z'))
+            {
+                current_screen = 0;
+                return true;
+            }
+            return false;
+        });
+    // -- rendering
+    auto render = Renderer(global_hotkeys, [=] {
+        return vbox({
+            spacer(2),
+            cnd_win_text->Render() | center,
+            cnd_loss_text->Render() | center,
+            spacer(1),
+            time_text->Render() | center,
+            filler(),
             });
         });
     return render;

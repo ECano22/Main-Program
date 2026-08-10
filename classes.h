@@ -85,8 +85,5 @@ int ExecuteAllySupport(PartyChar target, AllySupport skill);
 int ExecuteEnemyAttack(EnemyChar attacker, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,
 	ZMQConnection& weighted_service);
 
-bool AllAlliesDead(std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members)
-{
-	for (auto& member : party_members) if (member.is_used && member.HP > 0) return true;
-	return false;
-}
+bool AllDead(std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members);
+bool AllDead(std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members);
