@@ -626,7 +626,7 @@ Component ReadyScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX
                 vbox({
                     text(std::format("Atk: {}", member.atk)),
                     text(std::format("Def: {}", member.def)),
-                    text(std::format("Spd: {}", member.def)),
+                    text(std::format("Spd: {}", member.spd)),
                     })
                 }) | border;
             member_cards.push_back(card);
@@ -653,7 +653,7 @@ void ReadyScreen::ClearData()
 
 Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,
     std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar*, EnemyChar*>>& turn_order,
-    ZMQConnection& weighted_service, ZMQConnection& timer_service, ZMQConnection& leaderboard_service, ResultScreen& result_screen)
+    ZMQConnection& weighted_service, ZMQConnection& timer_service, ResultScreen& result_screen)
 {
     DebugLog("BattleScreen Created");
     auto advance_turn = [this, &turn_order]() {
@@ -812,7 +812,7 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
                 vbox({
                     text(std::format("Atk: {}", member.atk)),
                     text(std::format("Def: {}", member.def)),
-                    text(std::format("Spd: {}", member.def)),
+                    text(std::format("Spd: {}", member.spd)),
                     })
                 }) | border;
             member_cards.push_back(card);
@@ -831,7 +831,7 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
                 vbox({
                     text(std::format("Atk: {}", member.atk)),
                     text(std::format("Def: {}", member.def)),
-                    text(std::format("Spd: {}", member.def)),
+                    text(std::format("Spd: {}", member.spd)),
                     })
                 }) | border;
             enemy_cards.push_back(card);
@@ -850,7 +850,7 @@ Component BattleScreen::MakeScreen(int& current_screen, std::array<PartyChar, MA
     return render;
 }
 
-Component ResultScreen::MakeScreen(int& current_screen, ZMQConnection& score_service)
+Component ResultScreen::MakeScreen(int& current_screen, ZMQConnection& score_service, LeaderboardScreen& leaderboard_screen)
 {
     // -- static text
     auto win_text = Renderer([this] {
@@ -876,10 +876,68 @@ Component ResultScreen::MakeScreen(int& current_screen, ZMQConnection& score_ser
             });
         });
     Component input_name = Input(&name, "Name...");
-    auto leaderboard_text = Renderer([this] {
+    // -- layout & rendering
+    auto layout = Container::Vertical({
+        input_name,
+        });
+    auto global_hotkeys = CatchEvent(layout, [this, &current_screen, &leaderboard_screen, &score_service](Event event)
+        {
+            if (event == Event::Return)
+            {
+                leaderboard_screen.leaderboard = score_service.send_json({ name, winner })["Scores"];
+                current_screen = 7;
+                return true;
+            }
+            return false;
+        });
+    auto render = Renderer(global_hotkeys, [=] {
         return vbox({
-            text("Top Scores:")
-            }); 
+            spacer(2),
+            cnd_win_text->Render() | center,
+            cnd_loss_text->Render() | center,
+            spacer(1),
+            time_text->Render() | center,
+            spacer(2),
+            name_text->Render(),
+            input_name->Render(),
+            filler(),
+            });
+        });
+    return render;
+}
+
+Component LeaderboardScreen::MakeScreen(int& current_screen)
+{
+    // -- static text
+    auto leaderboard_text = Renderer([this] {
+        std::vector<Element> elements;
+
+        elements.push_back(text("Top Scores:") | bold | hcenter);
+        elements.push_back(spacer(1));
+
+        if (leaderboard.is_array() && !leaderboard.empty())
+        {
+            for (const auto& row : leaderboard)
+            {
+                if (row.is_array() && row.size() >= 2)
+                {
+                    std::string name = row[0].get<std::string>();
+                    std::string score = row[1].dump();
+                    elements.push_back(hbox({
+                        text(name),
+                        spacer(3),
+                        filler(),
+                        text(score)
+                        }));
+                }
+            }
+        }
+        else
+        {
+            elements.push_back(text("No scores yet.") | hcenter);
+        }
+
+        return vbox(elements);
         });
     // -- input handling
     auto dummy_focus = Button("", [] {});
@@ -896,10 +954,7 @@ Component ResultScreen::MakeScreen(int& current_screen, ZMQConnection& score_ser
     auto render = Renderer(global_hotkeys, [=] {
         return vbox({
             spacer(2),
-            cnd_win_text->Render() | center,
-            cnd_loss_text->Render() | center,
-            spacer(1),
-            time_text->Render() | center,
+            leaderboard_text->Render(),
             filler(),
             });
         });

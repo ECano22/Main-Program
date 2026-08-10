@@ -13,6 +13,7 @@
 class ReadyScreen;
 class BattleScreen;
 class ResultScreen;
+class LeaderboardScreen;
 
 class MainMenu
 {
@@ -121,20 +122,25 @@ class BattleScreen
 		const std::vector<std::string> choice_list =
 		{
 			"Attack",
-			"Skills",
+			// "Skills",
 		};
 		std::vector<std::string> enemy_list;
 		std::vector<std::string> skill_list;
 		ftxui::Component MakeScreen(int& current_screen, std::array<PartyChar, MAX_PARTY_MEMBERS>& party_members,
 			std::array<EnemyChar, MAX_PARTY_MEMBERS>& enemy_members, std::vector<std::variant<PartyChar*, EnemyChar*>>& turn_order,
-			ZMQConnection& weighted_service, ZMQConnection& timer_service, ZMQConnection& leaderboard_service, ResultScreen& result_screen);
+			ZMQConnection& weighted_service, ZMQConnection& timer_service, ResultScreen& result_screen);
 };
 class ResultScreen
 {
 	public:
 		bool winner = 0;
 		std::string finish_time;
-		nlohmann::json leaderboard;
 		std::string name;
-		ftxui::Component MakeScreen(int& current_screen, ZMQConnection& score_service);
+		ftxui::Component MakeScreen(int& current_screen, ZMQConnection& score_service, LeaderboardScreen& leaderboard_screen);
+};
+class LeaderboardScreen
+{
+public:
+	nlohmann::json leaderboard;
+	ftxui::Component MakeScreen(int& current_screen);
 };

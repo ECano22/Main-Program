@@ -39,6 +39,7 @@ int main()
     ReadyScreen ready_screen;
     BattleScreen battle_screen;
     ResultScreen result_screen;
+    LeaderboardScreen leaderboard_screen;
 
     // -- Setting up the router for the screens
     auto screen_router = Container::Tab({
@@ -48,8 +49,9 @@ int main()
         character_creator.MakeScreen(current_screen, party_members[0], party_members, member_count, ready_screen, rng_connection),
         adv_character_creator.MakeScreen(current_screen, party_members[0], party_members, member_count),
         ready_screen.MakeScreen(current_screen, party_members, member_count, character_creator, enemy_members, turn_order, battle_screen, timer_connection),
-        battle_screen.MakeScreen(current_screen, party_members, enemy_members, turn_order, weighted_connection, timer_connection, score_connection, result_screen),
-        result_screen.MakeScreen(current_screen, score_connection)
+        battle_screen.MakeScreen(current_screen, party_members, enemy_members, turn_order, weighted_connection, timer_connection, result_screen),
+        result_screen.MakeScreen(current_screen, score_connection, leaderboard_screen),
+        leaderboard_screen.MakeScreen(current_screen)
         }, &current_screen);
 
     screen.Loop(screen_router);
